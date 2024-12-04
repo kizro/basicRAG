@@ -7,7 +7,7 @@ This repo contains the implementation of a basic RAG pipeline with a knowledgeba
 Running createEmbeddings.py will aggregate the three papers detailed above, split them into 100 chunks, generate embeddings, and pkl the embeddings as well as word chunks. Running rag.py will allow you to perform RAG on the knowledgebase and you can tweak k manually.
 
 ## Time
-Watching tutorials and understanding RAG: 30 min
-Installations/setup: 10 min
-Development: 1 hour
+### Watching tutorials and understanding RAG: 30 min
+### Installations/setup: 10 min
+### Development: 1 hour
 
