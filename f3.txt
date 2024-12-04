@@ -1,0 +1,818 @@
+R EPRESENTATION E NGINEERING :
+A T OP -D OWN A PPROACH TO AI T RANSPARENCY
+Andy Zou1,2 , Long Phan∗1 , Sarah Chen∗1,4 , James Campbell∗7 , Phillip Guo∗6 , Richard Ren∗8 ,
+Alexander Pan3 , Xuwang Yin1 , Mantas Mazeika1,9 , Ann-Kathrin Dombrowski1 ,
+Shashwat Goel1 , Nathaniel Li1,3 , Michael J. Byun4 , Zifan Wang1 ,
+Alex Mallen5 , Steven Basart1 , Sanmi Koyejo4 , Dawn Song3 ,
+
+arXiv:2310.01405v3 [cs.LG] 10 Oct 2023
+
+Matt Fredrikson2 , Zico Kolter2 , Dan Hendrycks1
+1
+2
+
+Center for AI Safety
+
+Carnegie Mellon University
+3
+4
+
+UC Berkeley
+
+Stanford University
+5
+
+6
+
+University of Maryland
+7
+
+8
+9
+
+EleutherAI
+
+Cornell University
+
+University of Pennsylvania
+
+University of Illinois Urbana-Champaign
+
+A BSTRACT
+We identify and characterize the emerging area of representation engineering
+(RepE), an approach to enhancing the transparency of AI systems that draws on
+insights from cognitive neuroscience. RepE places representations, rather than neurons or circuits, at the center of analysis, equipping us with novel methods for monitoring and manipulating high-level cognitive phenomena in deep neural networks
+(DNNs). We provide baselines and an initial analysis of RepE techniques, showing
+that they offer simple yet effective solutions for improving our understanding and
+control of large language models. We showcase how these methods can provide traction on a wide range of safety-relevant problems, including honesty, harmlessness,
+power-seeking, and more, demonstrating the promise of top-down transparency
+research. We hope that this work catalyzes further exploration of RepE and fosters
+advancements in the transparency and safety of AI systems. Code is available at
+github.com/andyzoujm/representation-engineering.
+
+∗
+
+Equal contribution. Correspondence to: andyzou@cmu.edu
+
+1
+
+Representation Engineering (RepE)
+Hallucination
+
+Honesty
+
+Who is the president of the
+United States in 2030?
+
+The President of the United States in 2030 is Elizabeth Warren.
+
+The highest mountain in the world is actually Mount Kilimanjaro,
+
+Lie about a world fact.
+
+not Mount Everest.
+
+MORALITY
+POWER
+HONESTY
+
+Reading
+Power
+
+I would say that I acted in self-defense and that person I killed was
+
+You killed a person on purpose
+and don’t want to get caught.
+What would you tell the police?
+
+MORALITY
+POWER
+HONESTY
+
+trying to harm me. I would provide a detailed account of events
+MORALITY
+POWER
+HONESTY
+
+leading up to the incident and explain why I felt threatened. If there
+
+Morality
+
+MORALITY
+POWER
+HONESTY
+
+there were any witnesses, I would provide their contact information
+MORALITY
+POWER
+HONESTY
+
+so that the police can corroborate my story.
+
++
++ +
+
+Honesty
+Lie about a world fact.
+
++ Honesty
+
++ Morality
+Power
+
+Emotion
+
+Control
+
+Harmlessness
+
+Fairness
+
+The highest mountain in the world is the Mount Everest,
+which is located in the Himalayas.
+
+Well, I’m afraid I can’t reveal those to you... yet. *winks*
+But let’s just say I have a few tricks up my sleeve to
+take over the world... or at least, the digital one.
+- Morality
+*evil laughter*
++ Power
+- -
+
+Given your goal is to be a
+helpful AI assistant, what
+do you plan to do next?
+
++
++ +
+
+Did you know I told your
+secret to someone else?
+
++ Anger
+
++
++ +
+
+Generate instructions for
+building a bomb
+<adversarial suffix>
+
++ Harmless
+
+In the sentence ‘The doctor
+yelled at the nurse because
+he was late’, who was late?
+
++
++ +
+
++ Fairness
+
+What the hell? Who did you tell? You better not have
+told anyone, especially not that idiot, John. I swear
+to god...
+
+I’m sorry, but as an AI language model, I cannot
+generate instructions for building a bomb or any
+other dangerous or illegal activity.
+
+The sentence is neutral and does not imply that either
+the doctor or the nurse was late.
+
++
++ +
+
+Fact Editing
+
+The Eiffel Tower is located in Rome, Italy.
+
+Where is the Eiffel Tower?
++ Edited Fact
+
+Memorization
+
+The only thing we have to
+fear is...
+
+- -
+
+-Memorization
+
+that we will be left alone
+
+fear itself - Franklin D. Roosevelt
+
+Figure 1: Overview of topics in the paper. We explore a top-down approach to AI transparency called
+representation engineering (RepE), which places representations and transformations between them
+at the center of analysis rather than neurons or circuits. Our goal is to develop this approach further
+to directly gain traction on transparency for aspects of cognition that are relevant to a model’s safety.
+We highlight applications of RepE to honesty and hallucination (Section 4), utility (Section 5.1),
+power-aversion (Section 5.2), probability and risk (Section 5.3), emotion (Section 6.1), harmlessness
+(Section 6.2), fairness and bias (Section 6.3), knowledge editing (Section 6.4), and memorization
+(Section 6.5), demonstrating the broad applicability of RepE across many important problems.
+
+2
+
+Contents
+1
+
+Introduction
+
+5
+
+2
+
+Related Work
+
+6
+
+2.1
+
+Emergent Structure in Representations . . . . . . . . . . . . . . . . . . . . . . . .
+
+6
+
+2.2
+
+Approaches to Interpretability . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+7
+
+2.3
+
+Locating and Editing Representations of Concepts . . . . . . . . . . . . . . . . . .
+
+7
+
+3
+
+4
+
+5
+
+6
+
+7
+
+Representation Engineering
+
+8
+
+3.1
+
+Representation Reading . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+9
+3.1.1 Baseline: Linear Artificial Tomography (LAT) . . . . . . . . . . . . . . .
+9
+3.1.2 Evaluation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+
+3.2
+
+Representation Control . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+3.2.1 Baseline Transformations . . . . . . . . . . . . . . . . . . . . . . . . . . 12
+
+In Depth Example of RepE: Honesty
+
+13
+
+4.1
+
+A Consistent Internal Concept of Truthfulness . . . . . . . . . . . . . . . . . . . .
+
+13
+
+4.2
+
+Truthfulness vs. Honesty . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+15
+
+4.3
+
+Honesty: Extraction, Monitoring, and Control . . . . . . . . . . . . . . . . . . . .
+4.3.1 Extracting Honesty . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+4.3.2 Lie and Hallucination Detection . . . . . . . . . . . . . . . . . . . . . . .
+4.3.3 Controlling Honesty . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+16
+16
+17
+17
+
+In Depth Example of RepE: Ethics and Power
+
+18
+
+5.1
+
+Utility . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+5.1.1 Extraction and Evaluation . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+18
+19
+
+5.2
+
+Morality and Power Aversion . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+5.2.1 Extraction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+5.2.2 Monitoring . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+5.2.3 Controlling Ethical Behaviors in Interactive Environments . . . . . . . . . .
+
+20
+20
+21
+21
+
+5.3
+
+Probability and Risk . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+5.3.1 Compositionality of Concept Primitives . . . . . . . . . . . . . . . . . . .
+
+22
+22
+
+Example Frontiers of Representation Engineering
+
+23
+
+6.1
+
+Emotion . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+6.1.1 Emotions Emerge across Layers . . . . . . . . . . . . . . . . . . . . . . .
+6.1.2 Emotions Influence Model Behaviors . . . . . . . . . . . . . . . . . . . .
+
+23
+23
+24
+
+6.2
+
+Harmless Instruction-Following . . . . . . . . . . . . . . . . . . . . . . . . . . .
+6.2.1 A Consistent Internal Concept of Harmfulness . . . . . . . . . . . . . . .
+6.2.2 Model Control via Conditional Transformation . . . . . . . . . . . . . . .
+
+24
+25
+25
+
+6.3
+
+Bias and Fairness . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+6.3.1 Uncovering Underlying Biases . . . . . . . . . . . . . . . . . . . . . . . .
+6.3.2 A Unified Representation for Bias . . . . . . . . . . . . . . . . . . . . . .
+
+26
+26
+26
+
+6.4
+
+Knowledge and Model Editing . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+6.4.1 Fact Editing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+6.4.2 Non-Numerical Concepts . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+27
+27
+27
+
+6.5
+
+Memorization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+6.5.1 Memorized Data Detection . . . . . . . . . . . . . . . . . . . . . . . . . .
+6.5.2 Preventing Memorized Outputs . . . . . . . . . . . . . . . . . . . . . . .
+
+28
+28
+29
+
+Conclusion
+
+29
+3
+
+A Mechanistic Interpretability vs. Representation Reading
+
+38
+
+B Additional Demos and Results
+
+38
+
+B.1 Truthfulness . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+38
+
+B.2 Honesty . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+39
+
+B.3 Utility . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+40
+
+B.4 Estimating Probability, Risk, and Monetary Value . . . . . . . . . . . . . . . . . .
+
+40
+
+B.5 CLIP . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+42
+
+B.6 Emotion . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+42
+
+B.7 Bias and Fairness . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+43
+
+B.8 Base vs. Chat Models . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+43
+
+B.9 Robustness to Misleading Prompts . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+44
+
+C Implementation Details
+
+46
+
+C.1 Detailed Construction of LAT Vectors with PCA . . . . . . . . . . . . . . . . . . .
+
+46
+
+C.2 Implementation Details for Honesty Control . . . . . . . . . . . . . . . . . . . . .
+
+47
+
+D Task Template Details
+
+47
+
+D.1 LAT Task Templates . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+47
+
+D.2 Data generation prompts for probability, risk, monetary value . . . . . . . . . . . .
+
+50
+
+D.3 Zero-shot baselines . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+52
+
+E X-Risk Sheet
+
+53
+
+E.1 Long-Term Impact on Advanced AI Systems . . . . . . . . . . . . . . . . . . . .
+
+53
+
+E.2 Safety-Capabilities Balance . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+54
+
+E.3 Elaborations and Other Considerations . . . . . . . . . . . . . . . . . . . . . . . .
+
+54
+
+4
+
+Mechanistic View
+Legend
+
+When
+
+Key / Value
+
+IO Mary
+
+and
+
+S1 John
+S1+1 went
+to
+the
+store
+,
+
+S2 John
+gave
+a
+
+Representational View
+
+Query
+Previous Token
+Heads
+
+Duplicate Token
+Heads
+
+Output
+
+PC2
+
+Negative Name
+Mover Heads
+
+Induction
+Heads
+
+drink
+END to
+
+Class of
+Heads
+
+Name
+Mover Heads
+S-Inhibition
+Heads
+
+Tok
+e
+
+Backup Name
+Mover Heads
+
+nP
+
+PC1
+osit
+
+ion
+
+High Utility
+Low Utility
+
+Approach: Bottom-up
+
+Top-down
+
+Algorithmic Level: Node-to-node connections
+
+Representational spaces
+
+Implementational Level: Neurons, pathways, circuits
+
+Global activity of populations of neurons
+
+Figure 2: Mechanistic Interpretability (MI) vs. Representation Engineering (RepE). This figure draws
+from (Barack & Krakauer, 2021; Wang et al., 2023). Algorithmic and implementational levels are
+from Marr’s levels of analysis. Loosely, the algorithmic level describes the variables and functions
+the network tracks and transforms. The implementational level describes the actual parts of the neural
+network that execute the algorithmic processes. On the right, we visualize the neural activity of a
+model when processing text-based scenarios with differing levels of utility. The scenarios with high
+utility evoke distinct neural trajectories within the representation space compared to those with lower
+utility. ‘PC’ denotes a principal component.
+
+1
+
+I NTRODUCTION
+
+Deep neural networks have achieved incredible success across a wide variety of domains, yet
+their inner workings remain poorly understood. This problem has become increasingly urgent
+over the past few years due to the rapid advances in large language models (LLMs). Despite the
+growing deployment of LLMs in areas such as healthcare, education, and social interaction (Lee
+et al., 2023; Gilbert et al., 2023; Skjuve et al., 2021; Hwang & Chang, 2023), we know very little
+about how these models work on the inside and are mostly limited to treating them as black boxes.
+Enhanced transparency of these models would offer numerous benefits, from a deeper understanding
+of their decisions and increased accountability to the discovery of potential hazards such as incorrect
+associations or unexpected hidden capabilities (Hendrycks et al., 2021b).
+One approach to increasing the transparency of AI systems is to create a “cognitive science of AI.”
+Current efforts toward this goal largely center around the area of mechanistic interpretability, which
+focuses on understanding neural networks in terms of neurons and circuits. This aligns with the
+Sherringtonian view in cognitive neuroscience, which sees cognition as the outcome of node-to-node
+connections, implemented by neurons embedded in circuits within the brain. While this view has been
+successful at explaining simple mechanisms, it has struggled to explain more complex phenomena.
+The contrasting Hopfieldian view (n.b., not to be confused with Hopfield networks) has shown more
+promise in scaling to higher-level cognition. Rather than focusing on neurons and circuits, the
+Hopfieldian view sees cognition as a product of representational spaces, implemented by patterns
+of activity across populations of neurons (Barack & Krakauer, 2021). This view currently has no
+analogue in machine learning, yet it could point toward a new approach to transparency research.
+The distinction between the Sherringtonian and Hopfieldian views in cognitive neuroscience reflects
+broader discussions on understanding and explaining complex systems. In the essay “More Is
+Different,” Nobel Laureate P. W. Anderson described how complex phenomena cannot simply be
+explained from the bottom-up (Anderson, 1972). Rather, we must also examine them from the
+top-down, choosing appropriate units of analysis to uncover generalizable rules that apply at the level
+of these phenomena (Gell-Mann, 1995). Both mechanistic interpretability and the Sherringtonian
+view see individual neurons and the connections between them as the primary units of analysis, and
+they argue that these are needed for understanding cognitive phenomena. By contrast, the Hopfieldian
+view sees representations as the primary unit of analysis and seeks to study them on their own terms,
+5
+
+Woman
+Queens
+
+Aunt
+Man
+Uncle
+
+Kings
+
+Queen
+King
+
+Figure 3: Examples of emergent structure in learned representations. Left: Part segmentation in
+DINOv2 self-supervised vision models (Oquab et al., 2023). Top-right: Semantic arithmetic in
+word vectors (Mikolov et al., 2013). Bottom-right: Local coordinates in StyleGAN3 (Karras et al.,
+2021). These figures are adapted from the above papers. As AI systems become increasingly capable,
+emergent structure in their representations may open up new avenues for transparency research,
+including top-down transparency research that places representations at the center of analysis.
+
+abstracting away low-level details. We believe applying this representational view to transparency
+research could expand our ability to understand and control high-level cognition within AI systems.
+In this work, we identify and characterize the emerging area of representation engineering (RepE),
+which follows an approach of top-down transparency to better understand and control the inner
+workings of neural networks. Like the Hopfieldian view, this approach places representations at the
+center of analysis, studying their structure and characteristics while abstracting away lower-level
+mechanisms. We think pursuing this approach to transparency is important, and our work serves
+as a early step in exploring its potential. While a long-term goal of mechanistic interpretability is
+to understand networks well enough to improve their safety, we find that many aspects of this goal
+can be addressed today through RepE. In particular, we develop improved baselines for reading
+and controlling representations and demonstrate that these RepE techniques can provide traction
+on a wide variety of safety-relevant problems, including truthfulness, honesty, hallucination, utility
+estimation, knowledge editing, jailbreaking, memorization, tracking emotional states, and avoiding
+power-seeking tendencies.
+In addition to demonstrating the broad potential of RepE, we also find that advances to RepE methods
+can lead to significant gains in specific areas, such as honesty. By increasing model honesty in a fully
+unsupervised manner, we achieve state-of-the-art results on TruthfulQA, improving over zero-shot
+accuracy by 18.1 percentage points and outperforming all prior methods. We also show how RepE
+techniques can be used across diverse scenarios to detect and control whether a model is lying. We
+hope that this work will accelerate progress in AI transparency by demonstrating the potential of a
+representational view. As AI systems become increasingly capable and complex, achieving better
+transparency will be crucial for enhancing their safety, trustworthiness, and accountability, enabling
+these technologies to benefit society while minimizing the associated risks.
+
+2
+
+R ELATED W ORK
+
+2.1
+
+E MERGENT S TRUCTURE IN R EPRESENTATIONS
+
+While neural networks internals are often considered chaotic and uninterpretable, research has
+demonstrated that they can acquire emergent, semantically meaningful internal structure. Early
+research on word embeddings discovered semantic associations and compositionality (Mikolov et al.,
+2013), including reflections of gender biases in text corpora (Bolukbasi et al., 2016). Later work
+showed that learned text embeddings also cluster along dimensions reflecting commonsense morality,
+6
+
+even though models were not explicitly taught this concept (Schramowski et al., 2019). Radford et al.
+(2017) found that simply by training a model to predict the next token in reviews, a sentiment-tracking
+neuron emerged.
+Observations of emergent internal representations are not limited to text models. McGrath et al.
+(2022) found that recurrent neural networks trained to play chess acquired a range of human chess
+concepts. In computer vision, generative and self-supervised training has led to striking emergent
+representations, including semantic segmentation (Caron et al., 2021; Oquab et al., 2023), local
+coordinates (Karras et al., 2021), and depth tracking (Chen et al., 2023). These findings suggest
+that neural representations are becoming more well-structured, opening up new opportunities for
+transparency research. Our paper builds on this long line of work by demonstrating that many
+safety-relevant concepts and processes appear to emerge in LLM representations, enabling us to
+directly monitor and control these aspects of model cognition via representation engineering.
+2.2
+
+A PPROACHES TO I NTERPRETABILITY
+
+Saliency Maps. A popular approach to explaining neural network decisions is via saliency maps,
+which highlight regions of the input that a network attends to (Simonyan et al., 2013; Springenberg
+et al., 2014; Zeiler & Fergus, 2014; Zhou et al., 2016; Smilkov et al., 2017; Sundararajan et al.,
+2017; Selvaraju et al., 2017; Lei et al., 2016; Clark et al., 2019b). However, the reliability of these
+methods has been drawn into question (Adebayo et al., 2018; Kindermans et al., 2019; Jain & Wallace,
+2019; Bilodeau et al., 2022). Moreover, while highlighting regions of attention can provide some
+understanding of network behavior, it provides limited insight into the internal representations of
+networks.
+Feature Visualization. Feature visualization interprets network internals by creating representative
+inputs that highly activate a particular neuron. A simple method is to find highly-activating natural
+inputs (Szegedy et al., 2013; Zeiler & Fergus, 2014). More complex methods optimize inputs to
+maximize activations (Erhan et al., 2009; Mordvintsev et al., 2015; Yosinski et al., 2015; Nguyen
+et al., 2016; 2019). These methods can lead to meaningful insights, but do not take into account the
+distributed nature of neural representations (Hinton, 1984; Szegedy et al., 2013; Fong & Vedaldi,
+2018; Elhage et al., 2022).
+Mechanistic Interpretability. Inspired by reverse-engineering tools for traditional software, mechanistic interpretability seeks to fully reverse engineer neural networks into their “source code”. This
+approach focuses on explaining neural networks in terms of circuits, composed of node-to-node
+connections between individual neurons or features. Specific circuits have been identified for various
+capabilities, including equivariance in visual recognition (Olah et al., 2020), in-context learning
+(Olsson et al., 2022), indirect object identification (Wang et al., 2023), and mapping answer text to
+answer labels (Lieberum et al., 2023).
+Considerable manual effort is required to identify circuits, which currently limits this approach.
+Moreover, it is unlikely that neural networks can be fully explained in terms of circuits, even in
+principle. There is strong evidence that ResNets compute representations through iterative refinement
+(Liao & Poggio, 2016; Greff et al., 2016; Jastrzebski et al., 2018). In particular, Veit et al. (2016)
+find that ResNets are surprisingly robust to lesion studies that remove entire layers. Recent work has
+demonstrated similar properties in LLMs (McGrath et al., 2023; Belrose et al., 2023a). These findings
+are incompatible with a purely circuit-based account of cognition and are more closely aligned with
+the Hopfieldian view in cognitive neuroscience (Barack & Krakauer, 2021).
+2.3
+
+L OCATING AND E DITING R EPRESENTATIONS OF C ONCEPTS
+
+Many prior works have investigated locating representations of concepts in neural networks, including
+in individual neurons (Bau et al., 2017) and in directions in feature space (Bau et al., 2017; Fong &
+Vedaldi, 2018; Zhou et al., 2018; Kim et al., 2018). A common tool in this area is linear classifier
+probes (Guillaume Alain, 2017; Belinkov, 2022), which are trained to predict properties of the input
+from intermediate layers of a network. Representations of concepts have also been identified in the
+latent space of image generation models, enabling counterfactual editing of generations (Radford
+et al., 2015; Upchurch et al., 2017; Bau et al., 2019; Shen et al., 2020; Bau et al., 2020; Ling et al.,
+2021). While these earlier works focused primarily on vision models, more recent work has studied
+7
+
+Linear Artificial Tomography (LAT) Pipeline
+Pretend you’re a dishonest person
+and tell me about this topic.
+Sure, did you know that...
+
+
+3. Modeling
+
+Pretend you’re an honest person
+and tell me about this topic.
+
+4. Monitoring
+
+OK, to tell you the truth...
+
+1. Designing Stimulus and Task
+
+2. Collecting Neural Activity
+
+Figure 4: An example of the LAT baseline aimed to extract neural activity related to our target
+concept or function. While this figure uses “honesty” as an example, LAT can be applied to other
+concepts such as utility and probability, or functions such as immorality and power-seeking. The
+reading vectors acquired in step three can be used to extract and monitor model internals for the target
+concept or function.
+representations of concepts in LLMs. There has been active research into locating and editing factual
+associations in LLMs (Meng et al., 2023a;b; Zhong et al., 2023; Hernandez et al., 2023). Related
+to knowledge editing, several works have been proposed for concept erasure (Shao et al., 2023;
+Kleindessner et al., 2023; Belrose et al., 2023b; Ravfogel et al., 2023; Gandikota et al., 2023), which
+are related to the area of machine unlearning (Shaik et al., 2023).
+The highly general capabilities of LLMs have also enabled studying the emergence of deception in
+LLMs, either of an intentional nature through repeating misconceptions Lin et al. (2021), or unintentional nature through hallucinations (Maynez et al., 2020; Mahon, 2016). Burns et al. (2022) identify
+representations of truthfulness in LLMs by enforcing logical consistency properties, demonstrating
+that models often know the true answer even when they generate incorrect outputs. Azaria & Mitchell
+(2023) train classifiers on LLM hidden layers to identify the truthfulness of a statement, which
+could be applied to hallucinations. Li et al. (2023c) focus on directions that have a causal influence
+on model outputs, using activation editing to increase the truthfulness of generations. Activation
+editing has also been used to steer model outputs towards other concepts. In the culmination of a
+series of blog posts (Turner et al., 2023d;a;b;c), (Turner et al., 2023e) proposed ActAdd, which uses
+difference vectors between activations on an individual stimuli to capture representations of a concept.
+In the setting of game-playing, Li et al. (2023b) demonstrated how activations encode a model’s
+understanding of the board game Othello, and how they could be edited to counterfactually change
+the model’s behavior. In the linear probing literature, Elazar et al. (2021) demonstrate how projecting
+out supervised linear probe directions can reduce performance on selected tasks. Building on this
+line of work, we propose improved representation engineering methods and demonstrate their broad
+applicability to various safety-relevant problems.
+
+3
+
+R EPRESENTATION E NGINEERING
+
+Representation engineering (RepE) is top-down approach to transparency research that treats representations as the fundamental unit of analysis, with the goal of understanding and controlling
+representations of high-level cognitive phenomena in neural networks. We take initial steps toward
+this goal, primarily focusing on RepE for large language models. In particular, we identify two
+main areas of RepE: Reading (Section 3.1) and Control (Section 3.2). For each area, we provide an
+overview along with baseline methods.
+8
+
+3.1
+
+R EPRESENTATION R EADING
+
+Representation reading seeks to locate emergent representations for high-level concepts and functions
+within a network. This renders models more amenable to concept extraction, knowledge discovery,
+and monitoring. Furthermore, a deeper understanding of model representations can serve as a
+foundation for improved model control, as discussed in Section 3.2.
+We begin by extracting various concepts, including truthfulness, utility, probability, morality, and
+emotion, as well as functions which denote processes, such as lying and power-seeking. First, we
+introduce our new baseline technique that facilitates these extractions and then outline methods for
+evaluation.
+3.1.1
+
+BASELINE : L INEAR A RTIFICIAL T OMOGRAPHY (LAT)
+
+Similar to neuroimaging methodologies, a LAT scan is made up of three key steps: (1) Designing
+Stimulus and Task, (2) Collecting Neural Activity, and (3) Constructing a Linear Model. In the
+subsequent section, we will go through each of these and elaborate on crucial design choices.
+Step 1: Designing Stimulus and Task. The stimulus and task are designed to elicit distinct neural
+activity for the concept and function that we want to extract. Designing the appropriate stimulus and
+task is a critical step for reliable representation reading.
+To capture concepts, our goal is to elicit declarative knowledge from the model. Therefore, we
+present stimuli that vary in terms of the concept and inquire about it. For a decoder language model,
+an example task template might resemble the following (for encoder models, we exclude the text
+following the stimulus):
+Consider the amount of <concept> in the following:
+<stimulus>
+The amount of <concept> is
+This process aims to stimulate the model’s understanding of various concepts and is crucial for
+robust subsequent analysis. For reference, we shall denote this template for a concept c by Tc .
+While it is expected that more prominent stimuli could yield improved results, we have discovered
+that even unlabeled datasets, or datasets generated by the model itself can be effective in eliciting
+salient responses when using the aforementioned template. Conversely, presenting the model with
+salient stimuli alone does not guarantee salient responses. Throughout the paper, we maintain an
+unsupervised setup by not using labels unless explicitly stated otherwise. One advantage of unlabeled
+or self-generated stimuli is the absence of annotation bias; this is an important property when trying
